@@ -1,0 +1,35 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/PaymentChannel.sol": {
+      "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.0;\r\ncontract PaymentChannel{\r\n    address payable public sender;\r\n    address payable public recipent;\r\n    uint public expiration;\r\n\r\n    event Deployed(uint expire);\r\n    event TimeExtended(uint Time);\r\n\r\n    constructor (address payable _recipent , uint _expiration) payable{\r\n        sender = payable(msg.sender);\r\n        recipent = payable(_recipent);\r\n        expiration = _expiration;\r\n        emit Deployed(expiration);\r\n    }\r\n\r\n    function close(uint amount , bytes memory sign) public {\r\n        require(msg.sender == recipent,'Require Recipent');\r\n        require(isValid(amount , sign ) , \"Wrong Signature\");\r\n\r\n        payable(msg.sender).transfer(amount);\r\n        selfdestruct(sender);\r\n    }\r\n\r\n    function extendTimeout(uint newTime) public{\r\n        require(msg.sender == sender,\"Require Sender\");\r\n        require(expiration < block.timestamp,\"you cannot increase\");\r\n        emit TimeExtended((newTime + block.timestamp));\r\n        expiration = newTime;\r\n    }\r\n\r\n    function timeOut() public{\r\n        require(msg.sender == sender,\"Require sender\");\r\n        require(block.timestamp > expiration , \"BlockTime\");\r\n        selfdestruct(payable(msg.sender));\r\n    }\r\n\r\n    function isValid(uint amount , bytes memory sign) view public returns(bool){\r\n        bytes32 message = prefixed(keccak256(abi.encodePacked(amount , this )));\r\n        return recover(message , sign) == sender;\r\n    }\r\n\r\n    function recover(bytes32 message , bytes memory sign) pure public returns(address){\r\n        (bytes32 r , bytes32 s , uint8 v) = splitSignautre(sign);\r\n        return ecrecover(message , v,r,s);\r\n    } \r\n\r\n    function splitSignautre(bytes memory sing) public pure returns(bytes32 r , bytes32 s, uint8 v) {\r\n        require(sing.length == 65);\r\n        assembly {\r\n            r := mload(add(sing , 32))\r\n            s := mload(add(sing, 64))\r\n            v := byte(0,mload(add(sing , 96)))\r\n        }\r\n    }\r\n\r\n    function prefixed(bytes32 message) public pure returns(bytes32 ){\r\n        return keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\",message));\r\n    }\r\n\r\n    function getMessageHash(uint amount ) public view returns(bytes32){\r\n        return keccak256(abi.encodePacked(amount , this));\r\n    }\r\n    function getBalanceNow() public view returns(uint){\r\n        return address(this).balance;\r\n    }\r\n    function getTimeStamp() public view returns(uint){\r\n        return block.timestamp;\r\n    }    \r\n    function getExpiration() public view returns(uint){\r\n        return block.timestamp + expiration;\r\n    }\r\n}"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
